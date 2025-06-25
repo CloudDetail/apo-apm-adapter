@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/CloudDetail/apo-apm-adapter/pkg/global"
+	"github.com/CloudDetail/apo-module/apm/client/v1/api"
 
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/middleware/pprof"
@@ -16,7 +17,6 @@ import (
 
 func StartHttpServer(port int) {
 	app := iris.Default()
-
 	app.Post("/trace/list", queryTraceList)
 
 	p := pprof.New()
@@ -52,13 +52,13 @@ type BasicResponse struct {
 }
 
 func queryTraceList(ctx iris.Context) {
-	var request TraceListRequest
+	var request api.QueryParams
 	if err := ctx.ReadJSON(&request); err != nil {
 		responseWithError(ctx, err)
 		return
 	}
 
-	result, err := global.TRACE_CLIENT.QueryTraceList(request.ApmType, request.TraceId, request.StartTime, request.Attributes)
+	result, err := global.TRACE_CLIENT.QueryTraceList(ctx, &request)
 	if err != nil {
 		log.Printf("[QueryTraceList] apmType: %s, traceId: %s, error: %v", request.ApmType, request.TraceId, err)
 		responseWithError(ctx, err)
@@ -77,11 +77,4 @@ func responseWithError(ctx iris.Context, err error) {
 		"success":  false,
 		"errorMsg": err.Error(),
 	})
-}
-
-type TraceListRequest struct {
-	ApmType    string `json:"apmType"`
-	TraceId    string `json:"traceId"`
-	StartTime  int64  `json:"startTime"`
-	Attributes string `json:"attributes"`
 }

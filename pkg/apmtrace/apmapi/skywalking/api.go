@@ -1,6 +1,7 @@
 package skywalking
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -36,7 +37,7 @@ func NewSkywalkingApi(address string, user string, passwd string, timeout int64)
 	}
 }
 
-func (sw *SkywalkingApi) QueryList(traceId string, startTimeMs int64, attributes string) ([]*model.OtelServiceNode, error) {
+func (sw *SkywalkingApi) QueryList(ctx context.Context, traceId string, startTimeMs int64, attributes string) ([]*model.OtelServiceNode, error) {
 	requestBody := fmt.Sprintf(`{"query": "query queryTrace($traceId: ID!) {trace: queryTrace(traceId: $traceId) {spans{traceId segmentId spanId parentSpanId refs{traceId parentSegmentId parentSpanId type} serviceCode serviceInstanceName startTime endTime endpointName type peer component isError layer tags{key value} logs{time data {key value}}}}}","variables": {"traceId": "%s"}}`, traceId)
 	headers := map[string]string{
 		"Content-Type": "application/json",

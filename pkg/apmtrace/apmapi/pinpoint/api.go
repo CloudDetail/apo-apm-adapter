@@ -1,6 +1,7 @@
 package pinpoint
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,7 +23,7 @@ func NewPinpointApi(address string, timeout int64) (ppApi *PinpointApi, err erro
 	}, nil
 }
 
-func (pinpoint *PinpointApi) QueryList(traceId string, startTimeMs int64, attributes string) ([]*model.OtelServiceNode, error) {
+func (pinpoint *PinpointApi) QueryList(ctx context.Context, traceId string, startTimeMs int64, attributes string) ([]*model.OtelServiceNode, error) {
 	resp, err := queryJson(fmt.Sprintf("%s?traceId=%s", pinpoint.Address, strings.ReplaceAll(traceId, "^", "%5E")), pinpoint.Timeout)
 	if err != nil {
 		return nil, err
