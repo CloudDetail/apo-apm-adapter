@@ -28,7 +28,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("fail to read configuration: %w", err)
 	}
-	apmTraceClient, err := apmtrace.NewApmTraceClient(adapterCfg.TraceApi, adapterCfg.Timeout)
+	apmTraceClient, err := apmtrace.NewApmTraceClient(adapterCfg.TraceApi, adapterCfg.ClusterAPIMap, adapterCfg.Timeout)
 	if err != nil {
 		return fmt.Errorf("fail to connect apm trace client: %w", err)
 	}

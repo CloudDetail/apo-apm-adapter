@@ -11,7 +11,9 @@ import (
 	"github.com/CloudDetail/apo-apm-adapter/pkg/apmtrace/apmapi/pinpoint"
 	"github.com/CloudDetail/apo-apm-adapter/pkg/apmtrace/apmapi/skywalking"
 	"github.com/CloudDetail/apo-apm-adapter/pkg/config"
+	"github.com/CloudDetail/apo-module/apm/client/v1/api"
 	"github.com/CloudDetail/apo-module/apm/model/v1"
+	"github.com/kataras/iris/v12"
 )
 
 const (
@@ -30,10 +32,34 @@ var (
 )
 
 type ApmTraceClient struct {
-	apiMap map[string]apmapi.QueryByApmApi
+	apiMap     apis // default
+	ClusterMap map[string]apis
 }
 
-func NewApmTraceClient(conf *config.TraceApiConfig, timeout int64) (*ApmTraceClient, error) {
+type apis map[string]apmapi.QueryByApmApi
+
+func NewApmTraceClient(conf *config.TraceApiConfig, clusterCFG config.ClusterTraceAPIConfig, timeout int64) (*ApmTraceClient, error) {
+	apiMap, err := newAPIMap(conf, timeout)
+	if err != nil {
+		//TODO error
+	}
+
+	var clusterAPIMap = make(map[string]apis)
+	for clusterID, apiCfg := range clusterCFG {
+		clusterAPI, err := newAPIMap(apiCfg, timeout)
+		if err != nil {
+			//TODO error
+		}
+		clusterAPIMap[clusterID] = clusterAPI
+	}
+
+	return &ApmTraceClient{
+		apiMap:     apiMap,
+		ClusterMap: clusterAPIMap,
+	}, nil
+}
+
+func newAPIMap(conf *config.TraceApiConfig, timeout int64) (map[string]apmapi.QueryByApmApi, error) {
 	apiMap := make(map[string]apmapi.QueryByApmApi, 0)
 	for _, apmType := range conf.ApmList {
 		switch apmType {
@@ -53,10 +79,7 @@ func NewApmTraceClient(conf *config.TraceApiConfig, timeout int64) (*ApmTraceCli
 	if len(apiMap) == 0 {
 		return nil, ErrNoAvaiableApmType
 	}
-
-	return &ApmTraceClient{
-		apiMap: apiMap,
-	}, nil
+	return apiMap, nil
 }
 
 func buildSkywalkingApi(conf *config.SkywalkingConfig, apiMap map[string]apmapi.QueryByApmApi, timeout int64) {
@@ -123,9 +146,19 @@ func buildPinpointApi(conf *config.PinpointConfig, apiMap map[string]apmapi.Quer
 	apiMap[APMTYPE_PINPOINT] = ppAPMClient
 }
 
-func (client *ApmTraceClient) QueryTraceList(apmType string, traceId string, startTimeMs int64, attributes string) ([]*model.OtelServiceNode, error) {
-	if api, exist := client.apiMap[apmType]; exist {
-		return api.QueryList(traceId, startTimeMs, attributes)
+func (client *ApmTraceClient) QueryTraceList(ctx iris.Context, queryParams *api.QueryParams) ([]*model.OtelServiceNode, error) {
+	api := client.apiMap[queryParams.ApmType]
+	if len(queryParams.ClusterID) != 0 {
+		clusterAPIs, find := client.ClusterMap[queryParams.ClusterID]
+		if find {
+			clusterAPI, find := clusterAPIs[queryParams.ApmType]
+			if find {
+				api = clusterAPI
+			}
+		}
 	}
-	return nil, fmt.Errorf("unknown apmType: %s", apmType)
+	if api == nil {
+		return nil, fmt.Errorf("unknown apmType: %s", queryParams.ApmType)
+	}
+	return api.QueryList(ctx, queryParams.TraceId, int64(queryParams.StartTime), queryParams.Attributes)
 }

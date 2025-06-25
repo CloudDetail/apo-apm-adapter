@@ -1,10 +1,13 @@
 package config
 
 type AdapterConfig struct {
-	HttpPort int             `mapstructure:"http_port"`
-	Timeout  int64           `mapstructure:"timeout"`
-	TraceApi *TraceApiConfig `mapstructure:"trace_api"`
+	HttpPort      int                   `mapstructure:"http_port"`
+	Timeout       int64                 `mapstructure:"timeout"`
+	TraceApi      *TraceApiConfig       `mapstructure:"trace_api"` // Default
+	ClusterAPIMap ClusterTraceAPIConfig `mapstructure:"clusters"`  // ClusterScope API
 }
+
+type ClusterTraceAPIConfig map[string]*TraceApiConfig
 
 type TraceApiConfig struct {
 	ApmList    []string          `mapstructure:"apm_list"`
